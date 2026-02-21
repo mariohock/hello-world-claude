@@ -44,7 +44,7 @@ class HelloWindow(Gtk.ApplicationWindow):
 
         motion = Gtk.EventControllerMotion()
         motion.connect("motion", self._on_mouse_move)
-        self.add_controller(motion)
+        self._fixed.add_controller(motion)
 
         button = Gtk.Button(label="Dance!")
         button.set_halign(Gtk.Align.CENTER)
@@ -135,7 +135,7 @@ class HelloWindow(Gtk.ApplicationWindow):
             self._is_idle = False
             self._idle_tick = 0
             self._css_provider.load_from_string(
-                f".title-1 {{ transform: rotate({self._current_angle:.1f}deg); }}"
+                f".title-1 {{ transform-origin: center; transform: rotate({self._current_angle:.1f}deg); }}"
             )
         else:
             # Idle near cursor — cycle colors
@@ -145,7 +145,7 @@ class HelloWindow(Gtk.ApplicationWindow):
             self._idle_tick += 1
             hue = (self._idle_tick * 3.6) % 360
             self._css_provider.load_from_string(
-                f".title-1 {{ transform: rotate({self._current_angle:.1f}deg); color: hsl({hue:.0f}, 80%, 50%); }}"
+                f".title-1 {{ transform-origin: center; transform: rotate({self._current_angle:.1f}deg); color: hsl({hue:.0f}, 80%, 50%); }}"
             )
 
         self._fixed.move(self._label, self._current_x, self._current_y)
@@ -174,12 +174,12 @@ class HelloWindow(Gtk.ApplicationWindow):
 
         hue = (self._dance_tick * 3.6) % 360
         self._css_provider.load_from_string(
-            f".title-1 {{ transform: rotate({angle:.1f}deg); color: hsl({hue:.0f}, 80%, 50%); }}"
+            f".title-1 {{ transform-origin: center; transform: rotate({angle:.1f}deg); color: hsl({hue:.0f}, 80%, 50%); }}"
         )
 
         if self._dance_tick >= 100:
             self._css_provider.load_from_string(
-                ".title-1 { transform: rotate(0deg); color: inherit; }"
+                ".title-1 { transform-origin: center; transform: rotate(0deg); color: inherit; }"
             )
             self._current_x = self._base_x
             self._current_y = self._base_y
