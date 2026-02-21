@@ -88,17 +88,26 @@ class HelloWindow(Gtk.ApplicationWindow):
         if self._dance_timer:
             return True
 
-        # Calculate from label center to mouse
         lw = self._label.get_width() or 200
         lh = self._label.get_height() or 40
+        angle_rad = math.radians(self._current_angle)
+
+        # Label center in world coords
         center_x = self._current_x + lw / 2
         center_y = self._current_y + lh / 2
-        dx = self._mouse_x - center_x
-        dy = self._mouse_y - center_y
-        dist = math.hypot(dx, dy)
 
-        # Target angle: right-center faces cursor
-        target_angle = math.degrees(math.atan2(dy, dx))
+        # Right-center of rotated label: center + rotated offset (lw/2, 0)
+        right_center_x = center_x + math.cos(angle_rad) * lw / 2
+        right_center_y = center_y + math.sin(angle_rad) * lw / 2
+
+        # Distance from rotated right-center to cursor
+        dist = math.hypot(self._mouse_x - right_center_x,
+                          self._mouse_y - right_center_y)
+
+        # Target angle from label center to mouse
+        target_angle = math.degrees(math.atan2(
+            self._mouse_y - center_y, self._mouse_x - center_x
+        ))
 
         # Limit turning speed to max 3 degrees per tick
         diff = (target_angle - self._current_angle + 180) % 360 - 180
@@ -107,12 +116,22 @@ class HelloWindow(Gtk.ApplicationWindow):
             diff = max_turn if diff > 0 else -max_turn
         self._current_angle += diff
 
-        # Move toward cursor at steady speed, stop when close enough
-        if dist > 80:
+        # Where should top-left be so that the rotated right-center lands on cursor?
+        # desired_center = cursor - rotated_offset
+        new_angle_rad = math.radians(self._current_angle)
+        desired_x = (self._mouse_x - math.cos(new_angle_rad) * lw / 2) - lw / 2
+        desired_y = (self._mouse_y - math.sin(new_angle_rad) * lw / 2) - lh / 2
+
+        # Distance from current position to desired position
+        move_dx = desired_x - self._current_x
+        move_dy = desired_y - self._current_y
+        move_dist = math.hypot(move_dx, move_dy)
+
+        # Move toward desired position at steady speed
+        if move_dist > 5:
             speed = 2.5
-            move_angle = math.radians(self._current_angle)
-            self._current_x += math.cos(move_angle) * speed
-            self._current_y += math.sin(move_angle) * speed
+            self._current_x += move_dx / move_dist * speed
+            self._current_y += move_dy / move_dist * speed
             self._is_idle = False
             self._idle_tick = 0
             self._css_provider.load_from_string(
