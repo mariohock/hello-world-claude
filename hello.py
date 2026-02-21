@@ -15,6 +15,11 @@ class HelloWindow(Gtk.ApplicationWindow):
 
         self._dance_tick = 0
         self._dance_timer = None
+        self._follow_timer = None
+        self._mouse_x = 0
+        self._mouse_y = 0
+        self._current_x = 0
+        self._current_y = 0
 
         overlay = Gtk.Overlay()
         self.set_child(overlay)
@@ -34,6 +39,10 @@ class HelloWindow(Gtk.ApplicationWindow):
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
+        motion = Gtk.EventControllerMotion()
+        motion.connect("motion", self._on_mouse_move)
+        self.add_controller(motion)
+
         button = Gtk.Button(label="Dance!")
         button.set_halign(Gtk.Align.CENTER)
         button.set_valign(Gtk.Align.END)
@@ -52,7 +61,36 @@ class HelloWindow(Gtk.ApplicationWindow):
         lh = self._label.get_height() or 40
         self._base_x = (w - lw) / 2
         self._base_y = (h - lh) / 2
+        self._current_x = self._base_x
+        self._current_y = self._base_y
+        self._mouse_x = self._base_x
+        self._mouse_y = self._base_y
         self._fixed.move(self._label, self._base_x, self._base_y)
+        self._start_following()
+
+    def _on_mouse_move(self, _controller, x, y):
+        lw = self._label.get_width() or 200
+        lh = self._label.get_height() or 40
+        self._mouse_x = x - lw / 2
+        self._mouse_y = y - lh / 2
+
+    def _start_following(self):
+        if not self._follow_timer:
+            self._follow_timer = GLib.timeout_add(50, self._follow_mouse)
+
+    def _stop_following(self):
+        if self._follow_timer:
+            GLib.source_remove(self._follow_timer)
+            self._follow_timer = None
+
+    def _follow_mouse(self):
+        if self._dance_timer:
+            return True
+        ease = 0.08
+        self._current_x += (self._mouse_x - self._current_x) * ease
+        self._current_y += (self._mouse_y - self._current_y) * ease
+        self._fixed.move(self._label, self._current_x, self._current_y)
+        return True
 
     def _on_dance_clicked(self, _button):
         if self._dance_timer:
@@ -80,10 +118,11 @@ class HelloWindow(Gtk.ApplicationWindow):
         )
 
         if self._dance_tick >= 100:
-            self._fixed.move(self._label, self._base_x, self._base_y)
             self._css_provider.load_from_string(
                 ".title-1 { transform: rotate(0deg); }"
             )
+            self._current_x = self._base_x
+            self._current_y = self._base_y
             self._dance_timer = None
             return False
         return True
