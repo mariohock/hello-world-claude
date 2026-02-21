@@ -86,9 +86,24 @@ class HelloWindow(Gtk.ApplicationWindow):
     def _follow_mouse(self):
         if self._dance_timer:
             return True
-        ease = 0.08
-        self._current_x += (self._mouse_x - self._current_x) * ease
-        self._current_y += (self._mouse_y - self._current_y) * ease
+
+        dx = self._mouse_x - self._current_x
+        dy = self._mouse_y - self._current_y
+        dist = math.hypot(dx, dy)
+
+        # Rotate so the right side ("head") faces the cursor
+        angle_rad = math.atan2(dy, dx)
+        angle_deg = math.degrees(angle_rad)
+        self._css_provider.load_from_string(
+            f".title-1 {{ transform: rotate({angle_deg:.1f}deg); }}"
+        )
+
+        # Move toward cursor at steady speed, stop when close
+        if dist > 5:
+            speed = 2.5
+            self._current_x += dx / dist * speed
+            self._current_y += dy / dist * speed
+
         self._fixed.move(self._label, self._current_x, self._current_y)
         return True
 
@@ -113,13 +128,14 @@ class HelloWindow(Gtk.ApplicationWindow):
             self._base_y + offset_y,
         )
 
+        hue = (self._dance_tick * 3.6) % 360
         self._css_provider.load_from_string(
-            f".title-1 {{ transform: rotate({angle:.1f}deg); }}"
+            f".title-1 {{ transform: rotate({angle:.1f}deg); color: hsl({hue:.0f}, 80%, 50%); }}"
         )
 
         if self._dance_tick >= 100:
             self._css_provider.load_from_string(
-                ".title-1 { transform: rotate(0deg); }"
+                ".title-1 { transform: rotate(0deg); color: inherit; }"
             )
             self._current_x = self._base_x
             self._current_y = self._base_y
