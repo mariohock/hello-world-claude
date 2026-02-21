@@ -20,6 +20,8 @@ class HelloWindow(Gtk.ApplicationWindow):
         self._mouse_y = 0
         self._current_x = 0
         self._current_y = 0
+        self._idle_tick = 0
+        self._is_idle = False
 
         overlay = Gtk.Overlay()
         self.set_child(overlay)
@@ -94,15 +96,27 @@ class HelloWindow(Gtk.ApplicationWindow):
         # Rotate so the right side ("head") faces the cursor
         angle_rad = math.atan2(dy, dx)
         angle_deg = math.degrees(angle_rad)
-        self._css_provider.load_from_string(
-            f".title-1 {{ transform: rotate({angle_deg:.1f}deg); }}"
-        )
 
-        # Move toward cursor at steady speed, stop when close
-        if dist > 5:
+        # Move toward cursor at steady speed, stop when far enough away
+        if dist > 80:
             speed = 2.5
             self._current_x += dx / dist * speed
             self._current_y += dy / dist * speed
+            self._is_idle = False
+            self._idle_tick = 0
+            self._css_provider.load_from_string(
+                f".title-1 {{ transform: rotate({angle_deg:.1f}deg); }}"
+            )
+        else:
+            # Idle near cursor — cycle colors
+            if not self._is_idle:
+                self._is_idle = True
+                self._idle_tick = 0
+            self._idle_tick += 1
+            hue = (self._idle_tick * 3.6) % 360
+            self._css_provider.load_from_string(
+                f".title-1 {{ transform: rotate({angle_deg:.1f}deg); color: hsl({hue:.0f}, 80%, 50%); }}"
+            )
 
         self._fixed.move(self._label, self._current_x, self._current_y)
         return True
