@@ -119,8 +119,9 @@ class HelloWindow(Gtk.ApplicationWindow):
         # Where should top-left be so that the rotated right-center lands on cursor?
         # desired_center = cursor - rotated_offset
         new_angle_rad = math.radians(self._current_angle)
-        desired_x = (self._mouse_x - math.cos(new_angle_rad) * lw / 2) - lw / 2
-        desired_y = (self._mouse_y - math.sin(new_angle_rad) * lw / 2) - lh / 2
+        gap = 15
+        desired_x = (self._mouse_x - math.cos(new_angle_rad) * (lw / 2 + gap)) - lw / 2
+        desired_y = (self._mouse_y - math.sin(new_angle_rad) * (lw / 2 + gap)) - lh / 2
 
         # Distance from current position to desired position
         move_dx = desired_x - self._current_x
