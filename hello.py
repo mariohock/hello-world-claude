@@ -22,6 +22,7 @@ class HelloWindow(Gtk.ApplicationWindow):
         self._current_y = 0
         self._idle_tick = 0
         self._is_idle = False
+        self._current_angle = 0.0
 
         overlay = Gtk.Overlay()
         self.set_child(overlay)
@@ -71,10 +72,8 @@ class HelloWindow(Gtk.ApplicationWindow):
         self._start_following()
 
     def _on_mouse_move(self, _controller, x, y):
-        lw = self._label.get_width() or 200
-        lh = self._label.get_height() or 40
-        self._mouse_x = x - lw / 2
-        self._mouse_y = y - lh / 2
+        self._mouse_x = x
+        self._mouse_y = y
 
     def _start_following(self):
         if not self._follow_timer:
@@ -89,23 +88,35 @@ class HelloWindow(Gtk.ApplicationWindow):
         if self._dance_timer:
             return True
 
-        dx = self._mouse_x - self._current_x
-        dy = self._mouse_y - self._current_y
+        # Calculate from label center to mouse
+        lw = self._label.get_width() or 200
+        lh = self._label.get_height() or 40
+        center_x = self._current_x + lw / 2
+        center_y = self._current_y + lh / 2
+        dx = self._mouse_x - center_x
+        dy = self._mouse_y - center_y
         dist = math.hypot(dx, dy)
 
-        # Rotate so the right side ("head") faces the cursor
-        angle_rad = math.atan2(dy, dx)
-        angle_deg = math.degrees(angle_rad)
+        # Target angle: right-center faces cursor
+        target_angle = math.degrees(math.atan2(dy, dx))
 
-        # Move toward cursor at steady speed, stop when far enough away
+        # Limit turning speed to max 3 degrees per tick
+        diff = (target_angle - self._current_angle + 180) % 360 - 180
+        max_turn = 3.0
+        if abs(diff) > max_turn:
+            diff = max_turn if diff > 0 else -max_turn
+        self._current_angle += diff
+
+        # Move toward cursor at steady speed, stop when close enough
         if dist > 80:
             speed = 2.5
-            self._current_x += dx / dist * speed
-            self._current_y += dy / dist * speed
+            move_angle = math.radians(self._current_angle)
+            self._current_x += math.cos(move_angle) * speed
+            self._current_y += math.sin(move_angle) * speed
             self._is_idle = False
             self._idle_tick = 0
             self._css_provider.load_from_string(
-                f".title-1 {{ transform: rotate({angle_deg:.1f}deg); }}"
+                f".title-1 {{ transform: rotate({self._current_angle:.1f}deg); }}"
             )
         else:
             # Idle near cursor — cycle colors
@@ -115,7 +126,7 @@ class HelloWindow(Gtk.ApplicationWindow):
             self._idle_tick += 1
             hue = (self._idle_tick * 3.6) % 360
             self._css_provider.load_from_string(
-                f".title-1 {{ transform: rotate({angle_deg:.1f}deg); color: hsl({hue:.0f}, 80%, 50%); }}"
+                f".title-1 {{ transform: rotate({self._current_angle:.1f}deg); color: hsl({hue:.0f}, 80%, 50%); }}"
             )
 
         self._fixed.move(self._label, self._current_x, self._current_y)
