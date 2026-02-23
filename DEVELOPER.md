@@ -6,7 +6,10 @@ A GTK4 "Hello, World!" application written in Python that goes well beyond a sta
 
 ## Architecture
 
-The app is a single file (`hello.py`) built on **GTK4** via PyGObject (`gi`). All logic lives in one class, `HelloWindow`, which extends `Gtk.ApplicationWindow`.
+The app is split into two modules:
+
+- **`hello.py`** — GTK4 GUI layer. Contains `HelloWindow` (the main window class), the `FollowState` dataclass for mutable animation state, and CSS helper functions.
+- **`motion.py`** — Pure calculation helpers with **no GTK dependency**. All geometry, movement, dance, and color-cycling math lives here, making it fully unit-testable without a display server.
 
 ### Widget Hierarchy
 
@@ -34,28 +37,25 @@ When the dance timer is active, the follow timer's callback exits early (`return
 
 ## Core Algorithms
 
-### 1. Mouse-Following (`_follow_mouse`)
+### 1. Mouse-Following (`_follow_mouse` → helpers in `motion.py`)
 
-The label "aims" its right edge at the cursor, then moves toward a target position that keeps a 15 px gap. The algorithm per tick:
+The label "aims" its right edge at the cursor, then moves toward a target position that keeps a 15 px gap. The GUI method `_follow_mouse` in `hello.py` orchestrates the tick, calling pure functions from `motion.py` for each step:
 
-1. **Compute label center** from current top-left position (`_current_x`, `_current_y`).
-2. **Compute the rotated right-center** — the point at the middle of the label's right edge after rotation:
-   ```
-   right_center = center + (cos(angle), sin(angle)) * label_width / 2
-   ```
-3. **Compute target angle** from label center to mouse, then **clamp the turn** to ±3° per tick for smooth rotation.
-4. **Compute desired position** — where the label's top-left must be so that its rotated right-center lands 15 px before the cursor:
+1. **Compute label center** from current top-left position stored in `FollowState`.
+2. **Compute target angle** via `target_angle_toward()`, then **clamp the turn** to ±3°/tick via `clamp_turn()` for smooth rotation.
+3. **Compute desired position** via `desired_label_position()` — where the label's top-left must be so that its rotated right-center lands 15 px before the cursor:
    ```
    desired_center = cursor - direction * (label_width/2 + gap)
    desired_top_left = desired_center - (label_width/2, label_height/2)
    ```
-5. **Move toward desired position** at a fixed speed of 2.5 px/tick. If within 5 px, consider the label "idle."
+   Note: both axes use `label_width/2` in the rotation term (the radius from center to right-edge is always half the width). The `label_height/2` only appears in the center-to-top-left conversion.
+4. **Move toward desired position** via `move_toward()` at a fixed speed of 2.5 px/tick. If within 5 px, consider the label "idle."
 
-### 2. Idle Color Cycling
+### 2. Idle Color Cycling (`rainbow_hue()` in `motion.py`)
 
-When the label is within 5 px of its target (idle), it cycles through HSL hues at 3.6° per tick, producing a smooth rainbow effect.
+When the label is within 5 px of its target (idle), it cycles through HSL hues at 3.6° per tick via `rainbow_hue()`, producing a smooth rainbow effect.
 
-### 3. Dance Animation (`_animate`)
+### 3. Dance Animation (`_animate` → `dance_offsets()` in `motion.py`)
 
 Triggered by clicking "Dance!". For 100 ticks:
 - **X offset**: `sin(t * 2.5) * 60` — horizontal sway
@@ -92,7 +92,7 @@ python3 hello.py
 
 ## Testing
 
-Tests live in `test_hello.py` and cover the pure calculation functions extracted from the GUI class. Run with:
+Tests live in `test_hello.py` and cover the pure calculation functions in `motion.py`. Since `motion.py` has no GTK dependency, tests can run without a display server. Run with:
 
 ```bash
 python3 -m pytest test_hello.py -v
